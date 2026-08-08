@@ -1,0 +1,1 @@
+package com.ecobridge.repository; import com.ecobridge.entity.FeedPost; import org.springframework.data.jpa.repository.JpaRepository; import java.util.List; public interface FeedPostRepository extends JpaRepository<FeedPost,Long>{List<FeedPost> findAllByOrderByCreatedAtDesc();}

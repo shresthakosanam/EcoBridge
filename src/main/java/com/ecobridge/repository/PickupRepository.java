@@ -1,0 +1,1 @@
+package com.ecobridge.repository; import com.ecobridge.entity.PickupRequest; import org.springframework.data.jpa.repository.JpaRepository; import java.util.List; public interface PickupRepository extends JpaRepository<PickupRequest,Long>{List<PickupRequest> findAllByOrderByCreatedAtDesc();}

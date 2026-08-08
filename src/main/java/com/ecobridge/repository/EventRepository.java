@@ -1,0 +1,1 @@
+package com.ecobridge.repository; import com.ecobridge.entity.EcoEventEntity; import org.springframework.data.jpa.repository.JpaRepository; import java.util.List; public interface EventRepository extends JpaRepository<EcoEventEntity,Long>{List<EcoEventEntity> findAllByOrderByDateAsc();}

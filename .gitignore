@@ -1,0 +1,18 @@
+.tools/
+target/
+
+# Local embedded database files
+data/*.db
+
+# IDE and OS metadata
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local secrets and credentials
+.env
+.env.*
+*.pem
+*service-account*.json
+firebase-service-account*.json
