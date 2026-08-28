@@ -30,17 +30,13 @@ services:
         fromDatabase:
           name: ecobridge-db
           property: password
-      - key: FIREBASE_API_KEY
+      - key: GOOGLE_CLIENT_ID
         sync: false
-      - key: FIREBASE_AUTH_DOMAIN
+      - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: FIREBASE_PROJECT_ID
         sync: false
       - key: FIREBASE_STORAGE_BUCKET
-        sync: false
-      - key: FIREBASE_MESSAGING_SENDER_ID
-        sync: false
-      - key: FIREBASE_APP_ID
         sync: false
       - key: FIREBASE_SERVICE_ACCOUNT_JSON
         sync: false

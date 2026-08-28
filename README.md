@@ -1,53 +1,40 @@
 # EcoBridge
 
-Full-stack environmental action platform built with Java 21 and Spring Boot.
+Full-stack environmental action platform built with Java 21 and Spring Boot 3.5.4.
 
-- **Eco Pickup:** doorstep recycling requests and lifecycle status.
-- **Eco Events:** discover, host, join and leave local activities.
-- **Eco Feed:** publish environmental actions and like community posts.
+## Authentication
+
+EcoBridge uses Spring Security OAuth2 Client with Google OpenID Connect. Google identities are linked to local rows in the `users` table by Google subject ID and unique email. Browser authentication is held in an HTTP-only SameSite session cookie; no OAuth token or client secret is stored in frontend JavaScript.
+
+Create a Google OAuth 2.0 Web application and set:
+
+```powershell
+$env:GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
+$env:GOOGLE_CLIENT_SECRET="your-client-secret"
+```
+
+Authorized JavaScript origins:
+
+- `http://localhost:8080`
+- `https://ecobridge-2nfp.onrender.com`
+
+Authorized redirect URIs:
+
+- `http://localhost:8080/login/oauth2/code/google`
+- `https://ecobridge-2nfp.onrender.com/login/oauth2/code/google`
+
+The client secret belongs only in `.env.local` or Render environment variables. Never commit it.
 
 ## Run
 
-Install JDK 21 and Maven 3.9+, run `mvn spring-boot:run`, then open `http://localhost:8080`.
+Install JDK 21 and Maven 3.9+, set the Google variables, run `mvn spring-boot:run`, and open `http://localhost:8080`.
 
-The application uses a persistent embedded H2 database stored in `./data`, Spring Data JPA, BCrypt password hashing and server-side sessions. Data survives restarts.
+Local development uses persistent H2 data in `./data`. Production uses PostgreSQL. Existing production databases can apply `database/google-oauth-migration.sql`; Hibernate `ddl-auto=update` also creates the mapped columns.
 
-## Firebase Authentication
+## Firebase Storage
 
-Create a Firebase project and Web App. In Firebase Authentication, enable **Email/Password** and **Google** providers. Download a service-account JSON file from **Project settings → Service accounts** and set:
-
-```powershell
-$env:FIREBASE_API_KEY="your-web-api-key"
-$env:FIREBASE_AUTH_DOMAIN="your-project.firebaseapp.com"
-$env:FIREBASE_PROJECT_ID="your-project-id"
-$env:FIREBASE_STORAGE_BUCKET="your-project.firebasestorage.app"
-$env:FIREBASE_MESSAGING_SENDER_ID="your-sender-id"
-$env:FIREBASE_APP_ID="your-web-app-id"
-$env:GOOGLE_APPLICATION_CREDENTIALS="C:\secure\firebase-service-account.json"
-mvn spring-boot:run
-```
-
-Never place the service-account JSON in the repository. The browser signs in with Firebase, sends the Firebase ID token to Spring Boot, and the Java Firebase Admin SDK verifies it before creating the EcoBridge session.
-
-## REST API
-
-- `GET/POST /api/pickups`
-- `GET/POST /api/events`
-- `POST/DELETE /api/events/{id}/join`
-- `GET/POST /api/posts`
-- `POST /api/posts/{id}/like`
-- `DELETE /api/posts/{id}`
-
-For public production deployment, migrate H2 to PostgreSQL and add object storage for uploads, collector/admin roles, notifications, maps and integration tests.
+Firebase Authentication is not used. The Firebase Admin dependency remains only for image uploads to Firebase Storage. Configure `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, and either `GOOGLE_APPLICATION_CREDENTIALS` locally or `FIREBASE_SERVICE_ACCOUNT_JSON` on Render.
 
 ## Deploy to Render
 
-The repository includes a production `Dockerfile` and `render.yaml`. The Blueprint creates the Java web service and a PostgreSQL database in Singapore.
-
-1. Push this project to a GitHub or GitLab repository.
-2. In Render, select **New → Blueprint** and connect the repository.
-3. Render reads `render.yaml` and prompts for the Firebase values marked `sync: false`.
-4. Paste the Firebase Web App values and the complete service-account JSON into `FIREBASE_SERVICE_ACCOUNT_JSON`.
-5. Deploy, then add the resulting `https://<service>.onrender.com` domain to Firebase Authentication → Settings → Authorized domains.
-
-The production profile uses PostgreSQL, secure session cookies, forwarded HTTPS headers, and `/actuator/health` for platform health checks. Local development continues to use the file-backed H2 database.
+`render.yaml` configures PostgreSQL and declares `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and the Firebase Storage variables as secrets. Production trusts forwarded HTTPS headers, uses secure cookies, and derives the standard callback from `{baseUrl}/login/oauth2/code/google`.

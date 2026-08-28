@@ -1,4 +1,6 @@
 .tools/
+.tmp-tools/
+.tmp-apache-maven.zip
 target/
 
 # Local embedded database files

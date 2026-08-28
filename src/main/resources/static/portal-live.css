@@ -1,0 +1,4 @@
+.dashboard-empty{min-height:110px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:22px;border:1px dashed rgba(31,82,61,.2);border-radius:16px;background:rgba(255,255,255,.36)}
+.dashboard-empty b{font:700 16px Manrope,sans-serif;color:var(--ink)}
+.dashboard-empty p{margin:7px 0 0;color:var(--muted);font-size:13px;line-height:1.5}
+.impact-chart .dashboard-empty{width:100%;height:auto}
