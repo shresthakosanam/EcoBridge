@@ -1,0 +1,1 @@
+package com.ecobridge.repository; import com.ecobridge.entity.Community; import org.springframework.data.jpa.repository.JpaRepository; import java.util.*; public interface CommunityRepository extends JpaRepository<Community,Long>{List<Community> findByCreatedBy(Long userId);}

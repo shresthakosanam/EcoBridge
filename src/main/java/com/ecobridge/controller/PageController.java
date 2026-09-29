@@ -11,4 +11,5 @@ public class PageController {
     @GetMapping("/eco-pickup") public String pickup() { return "redirect:/pickup.html"; }
     @GetMapping("/eco-events") public String events() { return "redirect:/events.html"; }
     @GetMapping("/eco-feed") public String feed() { return "redirect:/feed.html"; }
+    @GetMapping("/collector") public String collector() { return "redirect:/collector.html"; }
 }

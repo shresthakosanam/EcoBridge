@@ -23,10 +23,13 @@ public class ApiController {
     private final PostLikeRepository likes;
     private final PostCommentRepository comments;
     private final UserRepository users;
+    private final CommunityRepository communities;
+    private final CommunityMemberRepository communityMembers;
 
     public ApiController(PickupRepository pickups, EventRepository events,
                          EventMembershipRepository memberships, FeedPostRepository posts,
-                         PostLikeRepository likes, PostCommentRepository comments, UserRepository users) {
+                         PostLikeRepository likes, PostCommentRepository comments, UserRepository users,
+                         CommunityRepository communities, CommunityMemberRepository communityMembers) {
         this.pickups = pickups;
         this.events = events;
         this.memberships = memberships;
@@ -34,6 +37,8 @@ public class ApiController {
         this.likes = likes;
         this.comments = comments;
         this.users = users;
+        this.communities = communities;
+        this.communityMembers = communityMembers;
     }
 
     @GetMapping("/pickups")
@@ -43,9 +48,10 @@ public class ApiController {
 
     @PostMapping("/pickups")
     @ResponseStatus(HttpStatus.CREATED)
-    public PickupRequest createPickup(@Valid @RequestBody PickupInput input, HttpSession session) {
+    public PickupRequest createPickup(@RequestHeader("Idempotency-Key") @Size(max=64) String key,@Valid @RequestBody PickupInput input, HttpSession session) {
+        Long userId=requireUser(session); Optional<PickupRequest> prior=pickups.findByClientRequestIdAndUserId(key,userId); if(prior.isPresent())return prior.get();
         PickupRequest pickup = new PickupRequest();
-        pickup.setUserId(requireUser(session));
+        pickup.setClientRequestId(key); pickup.setUserId(userId);
         pickup.setWasteType(input.wasteType());
         pickup.setQuantity(input.quantity());
         pickup.setImageUrl(input.imageUrl());
@@ -53,7 +59,7 @@ public class ApiController {
         pickup.setPreferredDate(input.preferredDate());
         pickup.setPreferredTime(input.preferredTime());
         pickup.setNotes(input.notes());
-        pickup.setStatus("Requested");
+        pickup.setStatus("REQUESTED");
         return pickups.save(pickup);
     }
 
@@ -76,6 +82,7 @@ public class ApiController {
         event.setCapacity(input.capacity());
         event.setImageUrl(input.imageUrl());
         event.setOrganizerId(userId);
+        event.setCommunityId(defaultCommunity(userId));
         event.setOrganizer(userName(session));
         event.setRegistered(0);
         return eventView(events.save(event), userId);
@@ -85,11 +92,11 @@ public class ApiController {
     @PostMapping("/events/{id}/join")
     public Map<String, Object> join(@PathVariable Long id, HttpSession session) {
         Long userId = requireUser(session);
-        EcoEventEntity event = events.findById(id).orElseThrow(() -> notFound("Event"));
+        EcoEventEntity event = events.findByIdForUpdate(id).orElseThrow(() -> notFound("Event"));
         if (memberships.findByUserIdAndEventId(userId, id).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "You already joined this event");
         }
-        if (memberships.countByEventIdAndStatus(id, "JOINED") >= event.getCapacity()) {
+        if (memberships.countByEventIdAndStatus(id, "REGISTERED") >= event.getCapacity()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This event is full");
         }
         EventMembership membership = new EventMembership();
@@ -180,7 +187,8 @@ public class ApiController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deletePost(@PathVariable Long id, HttpSession session) {
         FeedPost post = posts.findById(id).orElseThrow(() -> notFound("Post"));
-        if (!Objects.equals(post.getUserId(), requireUser(session))) {
+        Long currentUser = requireUser(session);
+        if (!Objects.equals(post.getUserId(), currentUser) && !isAdmin(currentUser)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only delete your own post");
         }
         likes.deleteByPostId(id);
@@ -188,16 +196,19 @@ public class ApiController {
         posts.delete(post);
     }
 
+    @Transactional @DeleteMapping("/comments/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteComment(@PathVariable Long id,HttpSession session){Long uid=requireUser(session);PostComment c=comments.findById(id).orElseThrow(()->notFound("Comment"));if(!Objects.equals(c.getUserId(),uid)&&!isAdmin(uid))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"You can only delete your own comment");comments.delete(c);}
+
     @GetMapping("/dashboard")
     public Map<String, Object> dashboard(HttpSession session) {
         Long id = requireUser(session);
         User user = users.findById(id).orElseThrow(() -> notFound("User"));
         List<PickupRequest> mine = pickups.findAllByUserIdOrderByCreatedAtDesc(id);
         List<PickupRequest> completed = mine.stream()
-                .filter(p -> "Completed".equalsIgnoreCase(p.getStatus())).toList();
+                .filter(p -> "COMPLETED".equalsIgnoreCase(p.getStatus())).toList();
         double diverted = completed.stream().mapToDouble(PickupRequest::getQuantity).sum();
         long postsShared = posts.countByUserId(id);
-        List<Long> joinedIds = memberships.findByUserIdAndStatus(id, "JOINED").stream()
+        List<Long> joinedIds = memberships.findByUserIdAndStatus(id, "REGISTERED").stream()
                 .map(EventMembership::getEventId).toList();
         List<Map<String, Object>> upcoming = events.findAllByOrderByDateAsc().stream()
                 .filter(e -> !e.getDate().isBefore(LocalDate.now()))
@@ -226,7 +237,7 @@ public class ApiController {
     }
 
     private Map<String, Object> eventView(EcoEventEntity event, Long userId) {
-        long count = memberships.countByEventIdAndStatus(event.getId(), "JOINED");
+        long count = memberships.countByEventIdAndStatus(event.getId(), "REGISTERED");
         Map<String, Object> view = new LinkedHashMap<>();
         view.put("id", event.getId()); view.put("name", event.getName());
         view.put("description", event.getDescription()); view.put("date", event.getDate());
@@ -239,10 +250,21 @@ public class ApiController {
         return view;
     }
 
+    private Long defaultCommunity(Long userId) {
+        return communities.findByCreatedBy(userId).stream().findFirst().map(Community::getId).orElseGet(() -> {
+            Community community = new Community(); community.setName(userNameFromId(userId) + "'s Community");
+            community.setDescription("Community created for EcoBridge events"); community.setCreatedBy(userId);
+            community = communities.save(community); CommunityMember member = new CommunityMember();
+            member.setCommunityId(community.getId()); member.setUserId(userId); member.setRole("OWNER"); communityMembers.save(member);
+            return community.getId();
+        });
+    }
+    private String userNameFromId(Long id) { return users.findById(id).map(User::getName).orElse("EcoBridge"); }
+
     private Map<String, Object> postView(FeedPost post, Long userId) {
         Map<String, Object> view = new LinkedHashMap<>();
         view.put("id", post.getId()); view.put("userId", post.getUserId());
-        view.put("author", post.getAuthor()); view.put("caption", post.getCaption());
+        view.put("author", users.findById(post.getUserId()).map(User::getName).orElse("EcoBridge Member")); view.put("caption", post.getCaption());
         view.put("activity", post.getActivity()); view.put("imageUrl", post.getImageUrl());
         view.put("likes", likes.countByPostId(post.getId())); view.put("comments", comments.countByPostId(post.getId()));
         view.put("createdAt", post.getCreatedAt());
@@ -252,7 +274,7 @@ public class ApiController {
 
     private Map<String, Object> commentView(PostComment comment) {
         return Map.of("id", comment.getId(), "postId", comment.getPostId(), "userId", comment.getUserId(),
-                "author", comment.getAuthor(), "body", comment.getBody(), "createdAt", comment.getCreatedAt());
+                "author", users.findById(comment.getUserId()).map(User::getName).orElse("EcoBridge Member"), "body", comment.getBody(), "createdAt", comment.getCreatedAt());
     }
 
     private Map<String, Object> userView(User user) {
@@ -270,6 +292,7 @@ public class ApiController {
     private String userName(HttpSession session) {
         return Optional.ofNullable((String) session.getAttribute("userName")).orElse("EcoBridge Member");
     }
+    private boolean isAdmin(Long id){return users.findById(id).map(u->"ROLE_ADMIN".equals(u.getRole())).orElse(false);}
     private ResponseStatusException notFound(String resource) {
         return new ResponseStatusException(HttpStatus.NOT_FOUND, resource + " not found");
     }

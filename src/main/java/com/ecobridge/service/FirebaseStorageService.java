@@ -11,6 +11,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 
 @Service
@@ -18,9 +20,12 @@ public class FirebaseStorageService {
     private static final long MAX_BYTES = 5L * 1024L * 1024L;
     private static final Set<String> ALLOWED_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
     private final String bucketName;
+    private final Path localUploadRoot;
 
-    public FirebaseStorageService(@Value("${FIREBASE_STORAGE_BUCKET:}") String bucketName) {
+    public FirebaseStorageService(@Value("${FIREBASE_STORAGE_BUCKET:}") String bucketName,
+                                  @Value("${ecobridge.upload-dir:data/uploads}") String localUploadDir) {
         this.bucketName = bucketName;
+        this.localUploadRoot = Path.of(localUploadDir).toAbsolutePath().normalize();
     }
 
     public Map<String, Object> upload(MultipartFile file, Long userId, String purpose) {
@@ -34,10 +39,6 @@ public class FirebaseStorageService {
         if (!ALLOWED_TYPES.contains(contentType)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only JPG, PNG and WebP images are supported");
         }
-        if (bucketName.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Firebase Storage is not configured");
-        }
-
         String extension = switch (contentType) {
             case "image/png" -> ".png";
             case "image/webp" -> ".webp";
@@ -48,6 +49,7 @@ public class FirebaseStorageService {
         String downloadToken = UUID.randomUUID().toString();
 
         try {
+            if (bucketName.isBlank()) return saveLocally(file, userId, safePurpose, extension, contentType);
             BlobInfo blobInfo = BlobInfo.newBuilder(BlobId.of(bucketName, objectName))
                     .setContentType(contentType)
                     .setMetadata(Map.of("firebaseStorageDownloadTokens", downloadToken))
@@ -56,9 +58,26 @@ public class FirebaseStorageService {
             String encoded = URLEncoder.encode(objectName, StandardCharsets.UTF_8).replace("+", "%20");
             String url = "https://firebasestorage.googleapis.com/v0/b/" + bucketName
                     + "/o/" + encoded + "?alt=media&token=" + downloadToken;
-            return Map.of("url", url, "contentType", contentType, "size", file.getSize());
+            return Map.of("url", url, "contentType", contentType, "size", file.getSize(), "storage", "firebase");
         } catch (Exception exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Could not upload image. Please try again.", exception);
+            return saveLocally(file, userId, safePurpose, extension, contentType);
+        }
+    }
+
+    private Map<String, Object> saveLocally(MultipartFile file, Long userId, String purpose,
+                                             String extension, String contentType) {
+        String fileName = UUID.randomUUID() + extension;
+        Path directory = localUploadRoot.resolve(purpose).resolve(String.valueOf(userId)).normalize();
+        if (!directory.startsWith(localUploadRoot)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid upload path");
+        }
+        try {
+            Files.createDirectories(directory);
+            file.transferTo(directory.resolve(fileName));
+            String url = "/uploads/" + purpose + "/" + userId + "/" + fileName;
+            return Map.of("url", url, "contentType", contentType, "size", file.getSize(), "storage", "local");
+        } catch (Exception exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Could not save image. Please try again.", exception);
         }
     }
 }

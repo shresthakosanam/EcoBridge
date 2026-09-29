@@ -2,9 +2,11 @@
 .tmp-tools/
 .tmp-apache-maven.zip
 target/
+.m2-cache/
 
 # Local embedded database files
 data/*.db
+data/uploads/
 
 # IDE and OS metadata
 .vscode/

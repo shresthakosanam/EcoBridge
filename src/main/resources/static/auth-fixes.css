@@ -1,0 +1,5 @@
+.input-wrap [data-eye]{position:absolute;right:10px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:#859087;cursor:pointer;padding:7px}
+.auth-error{background:#fff0f0;border:1px solid #e7b1b1;color:#8b2f2f;border-radius:12px;padding:11px 13px;font-size:11px;margin:0 0 16px}
+.social{display:block;text-align:center;text-decoration:none}
+.terms a{color:#128b55;font-weight:800}
+[hidden]{display:none!important}

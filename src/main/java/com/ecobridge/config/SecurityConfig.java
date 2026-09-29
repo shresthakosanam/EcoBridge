@@ -4,6 +4,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -15,12 +17,14 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/logout", "/h2-console/**"))
                 .cors(cors -> {})
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/login", "/login.html", "/signup.html", "/about", "/about.html",
-                                "/*.css", "/*.js", "/css/**", "/js/**", "/images/**", "/vendor/**", "/favicon.ico",
-                                "/oauth2/**", "/login/oauth2/**", "/actuator/health", "/h2-console/**").permitAll()
+                        .requestMatchers("/", "/index.html", "/login", "/login.html", "/signup.html", "/about", "/about.html",
+                                "/*.css", "/*.js", "/css/**", "/js/**", "/images/**", "/uploads/**", "/vendor/**", "/favicon.ico",
+                                "/oauth2/**", "/login/oauth2/**", "/api/auth/**", "/actuator/health", "/h2-console/**", "/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/events", "/api/posts").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/collector/**").hasRole("COLLECTOR")
                         .requestMatchers("/dashboard", "/dashboard.html", "/eco-pickup/**", "/pickup.html",
-                                "/eco-events/**", "/events.html", "/eco-feed/**", "/feed.html", "/profile/**",
+                                "/eco-events/**", "/events.html", "/eco-feed/**", "/feed.html", "/profile/**", "/collector", "/collector.html",
                                 "/api/**").authenticated()
                         .anyRequest().denyAll())
                 .oauth2Login(oauth -> oauth
@@ -41,4 +45,7 @@ public class SecurityConfig {
                 .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
                 .build();
     }
+
+    @Bean
+    PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
 }
