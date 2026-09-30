@@ -3,6 +3,8 @@ package com.ecobridge.service;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.firebase.cloud.StorageClient;
+import com.ecobridge.entity.StoredImage;
+import com.ecobridge.repository.StoredImageRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -11,8 +13,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 
 @Service
@@ -20,12 +20,12 @@ public class FirebaseStorageService {
     private static final long MAX_BYTES = 5L * 1024L * 1024L;
     private static final Set<String> ALLOWED_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
     private final String bucketName;
-    private final Path localUploadRoot;
+    private final StoredImageRepository images;
 
     public FirebaseStorageService(@Value("${FIREBASE_STORAGE_BUCKET:}") String bucketName,
-                                  @Value("${ecobridge.upload-dir:data/uploads}") String localUploadDir) {
+                                  StoredImageRepository images) {
         this.bucketName = bucketName;
-        this.localUploadRoot = Path.of(localUploadDir).toAbsolutePath().normalize();
+        this.images = images;
     }
 
     public Map<String, Object> upload(MultipartFile file, Long userId, String purpose) {
@@ -49,7 +49,7 @@ public class FirebaseStorageService {
         String downloadToken = UUID.randomUUID().toString();
 
         try {
-            if (bucketName.isBlank()) return saveLocally(file, userId, safePurpose, extension, contentType);
+            if (bucketName.isBlank()) return saveInDatabase(file, userId, contentType);
             BlobInfo blobInfo = BlobInfo.newBuilder(BlobId.of(bucketName, objectName))
                     .setContentType(contentType)
                     .setMetadata(Map.of("firebaseStorageDownloadTokens", downloadToken))
@@ -60,24 +60,22 @@ public class FirebaseStorageService {
                     + "/o/" + encoded + "?alt=media&token=" + downloadToken;
             return Map.of("url", url, "contentType", contentType, "size", file.getSize(), "storage", "firebase");
         } catch (Exception exception) {
-            return saveLocally(file, userId, safePurpose, extension, contentType);
+            return saveInDatabase(file, userId, contentType);
         }
     }
 
-    private Map<String, Object> saveLocally(MultipartFile file, Long userId, String purpose,
-                                             String extension, String contentType) {
-        String fileName = UUID.randomUUID() + extension;
-        Path directory = localUploadRoot.resolve(purpose).resolve(String.valueOf(userId)).normalize();
-        if (!directory.startsWith(localUploadRoot)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid upload path");
-        }
+    private Map<String, Object> saveInDatabase(MultipartFile file, Long userId, String contentType) {
         try {
-            Files.createDirectories(directory);
-            file.transferTo(directory.resolve(fileName));
-            String url = "/uploads/" + purpose + "/" + userId + "/" + fileName;
-            return Map.of("url", url, "contentType", contentType, "size", file.getSize(), "storage", "local");
+            StoredImage image = new StoredImage();
+            image.setUserId(userId);
+            image.setContentType(contentType);
+            image.setImageData(file.getBytes());
+            image = images.save(image);
+            return Map.of("url", "/media/" + image.getId(), "contentType", contentType,
+                    "size", file.getSize(), "storage", "database");
         } catch (Exception exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Could not save image. Please try again.", exception);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Could not save image. Please try again.", exception);
         }
     }
 }

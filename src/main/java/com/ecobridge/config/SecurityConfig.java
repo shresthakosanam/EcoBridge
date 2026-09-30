@@ -22,7 +22,7 @@ public class SecurityConfig {
                 .cors(cors -> {})
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/index.html", "/login", "/login.html", "/signup.html", "/about", "/about.html",
-                                "/*.css", "/*.js", "/css/**", "/js/**", "/images/**", "/uploads/**", "/vendor/**", "/favicon.ico",
+                                "/*.css", "/*.js", "/css/**", "/js/**", "/images/**", "/uploads/**", "/media/**", "/vendor/**", "/favicon.ico",
                                 "/oauth2/**", "/login/oauth2/**", "/api/auth/**", "/actuator/health", "/h2-console/**", "/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/events", "/api/posts").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
