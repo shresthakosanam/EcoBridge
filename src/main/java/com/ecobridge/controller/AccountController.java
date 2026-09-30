@@ -86,11 +86,24 @@ public class AccountController {
         if (userId == null) return ResponseEntity.status(401).body(Map.of("message", "Please sign in first"));
         User user = users.findById(userId).orElse(null);
         if (user == null) return ResponseEntity.status(404).body(Map.of("message", "Account not found"));
-        if (collectors.findByUserId(userId).isPresent()) return ResponseEntity.status(409).body(Map.of("message", "A collector application already exists."));
-        Collector collector = new Collector(); collector.setUserId(userId); collector.setPhone(input.phone().trim());
+        Collector collector = collectors.findByUserId(userId).orElse(null);
+        if (collector != null && !"REJECTED".equals(collector.getVerificationStatus())) {
+            return ResponseEntity.status(409).body(Map.of("message", "A collector application already exists."));
+        }
+        if (collector == null) { collector = new Collector(); collector.setUserId(userId); }
+        collector.setVerificationStatus("PENDING"); collector.setPhone(input.phone().trim());
         collector.setServiceArea(input.serviceArea().trim()); collector.setVehicleType(input.vehicleType()); collector.setVehicleNumber(input.vehicleNumber());
         collectors.save(collector);
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("verificationStatus", "PENDING", "message", "Collector application submitted for approval."));
+    }
+
+    @GetMapping("/collector/application")
+    public ResponseEntity<?> collectorApplication(HttpSession session) {
+        Long userId = (Long) session.getAttribute("userId");
+        if (userId == null) return ResponseEntity.status(401).body(Map.of("message", "Please sign in first"));
+        return ResponseEntity.ok(collectors.findByUserId(userId)
+                .<Map<String, Object>>map(collector -> Map.of("status", collector.getVerificationStatus()))
+                .orElseGet(() -> Map.of("status", "NOT_APPLIED")));
     }
 
     private void signIn(User user, HttpSession session) {

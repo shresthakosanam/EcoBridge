@@ -65,6 +65,10 @@ function applyUser(user) {
     avatar.innerHTML = user.avatarUrl ? `<img src="${escapeHtml(user.avatarUrl)}" alt="">` : initials(user.name);
     $('.profile b').textContent = user.name;
     $('.profile small').textContent = 'Eco Member';
+    if (user.role === 'ROLE_ADMIN' && !$('.side-nav a[href="/admin.html"]')) {
+        $('.side-nav').insertAdjacentHTML('beforeend', `<a href="/admin.html">${icon('shield-check')}Collector approvals</a>`);
+        lucide.createIcons();
+    }
     const composer = $('.composer .avatar'); if (composer) composer.textContent = initials(user.name);
 }
 

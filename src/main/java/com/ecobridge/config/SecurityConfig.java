@@ -14,7 +14,11 @@ public class SecurityConfig {
     SecurityFilterChain security(HttpSecurity http, DatabaseOidcUserService oidcUsers,
                                  OAuth2LoginSuccessHandler successHandler) throws Exception {
         return http
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/logout", "/h2-console/**"))
+                .csrf(csrf -> csrf.ignoringRequestMatchers(
+                        request -> request.getRequestURI().startsWith("/api/")
+                                && !request.getRequestURI().startsWith("/api/admin/"),
+                        request -> request.getRequestURI().equals("/logout")
+                                || request.getRequestURI().startsWith("/h2-console/")))
                 .cors(cors -> {})
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/index.html", "/login", "/login.html", "/signup.html", "/about", "/about.html",
@@ -22,6 +26,7 @@ public class SecurityConfig {
                                 "/oauth2/**", "/login/oauth2/**", "/api/auth/**", "/actuator/health", "/h2-console/**", "/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/events", "/api/posts").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/admin", "/admin.html").hasRole("ADMIN")
                         .requestMatchers("/api/collector/**").hasRole("COLLECTOR")
                         .requestMatchers("/dashboard", "/dashboard.html", "/eco-pickup/**", "/pickup.html",
                                 "/eco-events/**", "/events.html", "/eco-feed/**", "/feed.html", "/profile/**", "/collector", "/collector.html",
