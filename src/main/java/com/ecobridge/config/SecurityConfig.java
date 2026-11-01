@@ -11,8 +11,7 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 public class SecurityConfig {
     @Bean
-    SecurityFilterChain security(HttpSecurity http, DatabaseOidcUserService oidcUsers,
-                                 OAuth2LoginSuccessHandler successHandler) throws Exception {
+    SecurityFilterChain security(HttpSecurity http) throws Exception {
         return http
                 .csrf(csrf -> csrf.ignoringRequestMatchers(
                         request -> request.getRequestURI().startsWith("/api/")
@@ -21,22 +20,17 @@ public class SecurityConfig {
                                 || request.getRequestURI().startsWith("/h2-console/")))
                 .cors(cors -> {})
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/index.html", "/login", "/login.html", "/signup.html", "/about", "/about.html",
+                        .requestMatchers("/", "/index.html", "/login", "/login.html", "/signup.html", "/terms.html", "/privacy.html", "/about", "/about.html",
                                 "/*.css", "/*.js", "/css/**", "/js/**", "/images/**", "/uploads/**", "/media/**", "/vendor/**", "/favicon.ico",
-                                "/oauth2/**", "/login/oauth2/**", "/api/auth/**", "/actuator/health", "/h2-console/**", "/error").permitAll()
+                                "/api/auth/**", "/actuator/health", "/h2-console/**", "/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/events", "/api/posts").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/admin", "/admin.html").hasRole("ADMIN")
-                        .requestMatchers("/api/collector/**").hasRole("COLLECTOR")
+                        .requestMatchers("/api/collector/**").hasAnyRole("COLLECTOR", "ADMIN")
                         .requestMatchers("/dashboard", "/dashboard.html", "/eco-pickup/**", "/pickup.html",
                                 "/eco-events/**", "/events.html", "/eco-feed/**", "/feed.html", "/profile/**", "/collector", "/collector.html",
                                 "/api/**").authenticated()
                         .anyRequest().denyAll())
-                .oauth2Login(oauth -> oauth
-                        .loginPage("/login")
-                        .userInfoEndpoint(info -> info.oidcUserService(oidcUsers))
-                        .successHandler(successHandler)
-                        .failureUrl("/login?error"))
                 .logout(logout -> logout
                         .logoutUrl("/logout")
                         .logoutSuccessUrl("/")

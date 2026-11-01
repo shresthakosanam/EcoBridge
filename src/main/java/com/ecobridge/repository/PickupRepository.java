@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.*;
 
 public interface PickupRepository extends JpaRepository<PickupRequest,Long>{
+    List<PickupRequest> findAllByOrderByCreatedAtDesc();
     List<PickupRequest> findAllByUserIdOrderByCreatedAtDesc(Long userId);
     List<PickupRequest> findAllByCollectorIdOrderByCreatedAtDesc(Long collectorId);
     List<PickupRequest> findAllByCollectorIdIsNullAndStatusOrderByCreatedAtAsc(String status);

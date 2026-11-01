@@ -9,15 +9,12 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,24 +29,21 @@ public class AccountController {
     private final UserRepository users;
     private final PasswordEncoder passwords;
     private final CollectorRepository collectors;
-    private final boolean googleConfigured;
-    public AccountController(UserRepository users, PasswordEncoder passwords, CollectorRepository collectors,
-                             @Value("${spring.security.oauth2.client.registration.google.client-id:}") String googleClientId) {
+    public AccountController(UserRepository users, PasswordEncoder passwords, CollectorRepository collectors) {
         this.users = users;
         this.passwords = passwords;
         this.collectors = collectors;
-        this.googleConfigured = googleClientId != null && !googleClientId.isBlank()
-                && !"google-oauth-not-configured".equals(googleClientId);
     }
-
-    @GetMapping("/providers")
-    public Map<String, Object> providers() { return Map.of("google", googleConfigured); }
 
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@Valid @RequestBody Signup input, HttpSession session) {
         String email = input.email().trim().toLowerCase();
-        if (users.findByEmailIgnoreCase(email).isPresent()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", "An account already exists for this email."));
+        User existing = users.findByEmailIgnoreCase(email).orElse(null);
+        if (existing != null) {
+            String message = existing.getPasswordHash() == null
+                    ? "This email belongs to an older Google-only account. Please use a different email to create a password account."
+                    : "An account already exists for this email. Please log in instead.";
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", message));
         }
         User user = new User();
         user.setName(input.name().trim());
@@ -71,13 +65,11 @@ public class AccountController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> me(@AuthenticationPrincipal OidcUser principal, HttpSession session) {
+    public ResponseEntity<?> me(HttpSession session) {
         Long userId = (Long) session.getAttribute("userId");
         if (userId != null) return users.findById(userId).<ResponseEntity<?>>map(user -> ResponseEntity.ok(view(user)))
                 .orElseGet(() -> ResponseEntity.status(401).body(Map.of("message", "Not signed in")));
-        if (principal == null || principal.getEmail() == null) return ResponseEntity.status(401).body(Map.of("message", "Not signed in"));
-        return users.findByEmailIgnoreCase(principal.getEmail()).<ResponseEntity<?>>map(user -> ResponseEntity.ok(view(user)))
-                .orElseGet(() -> ResponseEntity.status(401).body(Map.of("message", "Not signed in")));
+        return ResponseEntity.status(401).body(Map.of("message", "Not signed in"));
     }
 
     @PostMapping("/collector/enroll")

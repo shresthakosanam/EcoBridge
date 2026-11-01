@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Collector Approvals · EcoBridge</title>
+  <title>Admin Workspace · EcoBridge</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/portal.css">
   <link rel="stylesheet" href="/admin.css">
@@ -12,14 +12,30 @@
   <main class="admin-shell">
     <header class="admin-top">
       <a class="brand" href="/"><span class="brand-icon"><i data-lucide="leaf"></i></span><span><span class="brand-eco">Eco</span><span class="brand-bridge">Bridge</span></span></a>
-      <a class="ghost" href="/dashboard.html"><i data-lucide="layout-dashboard"></i> Dashboard</a>
+      <div class="admin-actions"><a class="ghost" href="/dashboard.html"><i data-lucide="layout-dashboard"></i> Dashboard</a><button class="ghost" id="refresh"><i data-lucide="refresh-cw"></i> Refresh</button></div>
     </header>
     <div class="admin-content">
       <div class="eyebrow">ADMIN WORKSPACE</div>
-      <div class="admin-heading"><div><h1>Collector approvals</h1><p>Review applications before granting pickup access.</p></div><button class="ghost" id="refresh"><i data-lucide="refresh-cw"></i> Refresh</button></div>
+      <div class="admin-heading"><div><h1>EcoBridge overview</h1><p>Live activity from every account in this EcoBridge database.</p></div></div>
       <div id="message" role="status" aria-live="polite"></div>
-      <section class="admin-section"><div class="section-heading"><h2>Pending applications</h2><span id="pendingCount" class="status-badge">0 pending</span></div><div id="pending" class="application-list"></div></section>
-      <section class="admin-section"><div class="section-heading"><h2>Reviewed applications</h2></div><div id="reviewed" class="application-list"></div></section>
+      <section id="metrics" class="admin-metrics" aria-label="Platform totals"></section>
+      <section class="admin-section">
+        <div class="section-heading"><div><h2>Collector applications</h2><p>Approve an applicant before collector tools become available.</p></div><span id="pendingCount" class="status-badge">0 pending</span></div>
+        <div id="pending" class="application-list"></div>
+        <details class="reviewed-block"><summary>Reviewed applications</summary><div id="reviewed" class="application-list"></div></details>
+      </section>
+      <section class="admin-section">
+        <div class="section-heading"><div><h2>Pickup requests</h2><p>Requests created by members and their collector assignment status.</p></div><span id="pickupCount" class="status-badge">0 requests</span></div>
+        <div id="pickups" class="admin-table-wrap"></div>
+      </section>
+      <section class="admin-section">
+        <div class="section-heading"><div><h2>Accounts</h2><p>All members, approved collectors and administrators.</p></div><span id="userCount" class="status-badge">0 accounts</span></div>
+        <div id="users" class="admin-table-wrap"></div>
+      </section>
+      <section class="admin-split">
+        <section class="admin-section"><div class="section-heading"><div><h2>Events</h2><p>Events published across all accounts.</p></div></div><div id="events" class="activity-list"></div></section>
+        <section class="admin-section"><div class="section-heading"><div><h2>Feed posts</h2><p>Community activity shared by all accounts.</p></div></div><div id="posts" class="activity-list"></div></section>
+      </section>
     </div>
   </main>
   <script src="/vendor/lucide.min.js"></script>

@@ -1,18 +1,3 @@
-spring:
-  security:
-    oauth2:
-      client:
-        registration:
-          google:
-            # Non-secret fallbacks keep the service bootable while a deployment service
-            # is waiting for its secret environment variables to be configured.
-            client-id: ${GOOGLE_CLIENT_ID:google-oauth-not-configured}
-            client-secret: ${GOOGLE_CLIENT_SECRET:google-oauth-not-configured}
-            scope:
-              - openid
-              - profile
-              - email
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
 server:
   servlet:
     session:

@@ -3,6 +3,9 @@ package com.ecobridge.controller;
 import com.ecobridge.entity.Collector;
 import com.ecobridge.entity.User;
 import com.ecobridge.repository.CollectorRepository;
+import com.ecobridge.repository.EventRepository;
+import com.ecobridge.repository.FeedPostRepository;
+import com.ecobridge.repository.PickupRepository;
 import com.ecobridge.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +27,9 @@ import static org.mockito.Mockito.when;
 class AdminControllerTest {
     @Mock CollectorRepository collectors;
     @Mock UserRepository users;
+    @Mock PickupRepository pickups;
+    @Mock EventRepository events;
+    @Mock FeedPostRepository posts;
     @InjectMocks AdminController admin;
 
     @Test
@@ -51,6 +57,22 @@ class AdminControllerTest {
 
         assertEquals("APPROVED", collector.getVerificationStatus());
         assertEquals("ROLE_COLLECTOR", user.getRole());
+        verify(collectors).save(collector);
+        verify(users).save(user);
+    }
+
+    @Test
+    void approvingAdminApplicationKeepsAdminRole() {
+        Collector collector = pendingCollector();
+        User user = member();
+        user.setRole("ROLE_ADMIN");
+        when(collectors.findById(3L)).thenReturn(Optional.of(collector));
+        when(users.findById(7L)).thenReturn(Optional.of(user));
+
+        admin.approve(3L);
+
+        assertEquals("APPROVED", collector.getVerificationStatus());
+        assertEquals("ROLE_ADMIN", user.getRole());
         verify(collectors).save(collector);
         verify(users).save(user);
     }

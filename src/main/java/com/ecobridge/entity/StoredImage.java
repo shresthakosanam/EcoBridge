@@ -1,6 +1,8 @@
 package com.ecobridge.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 
 @Entity
@@ -14,7 +16,7 @@ public class StoredImage {
     private String contentType;
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
-    @Lob @Column(name = "image_data", nullable = false, columnDefinition = "LONGBLOB")
+    @JdbcTypeCode(SqlTypes.VARBINARY) @Column(name = "image_data", nullable = false)
     private byte[] imageData;
 
     @PrePersist void created() { createdAt = Instant.now(); }
