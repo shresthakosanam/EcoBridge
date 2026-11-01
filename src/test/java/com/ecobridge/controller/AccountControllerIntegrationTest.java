@@ -34,8 +34,8 @@ class AccountControllerIntegrationTest {
                 .andExpect(jsonPath("$.email").value("member@example.test"))
                 .andReturn();
 
-        MockHttpSession session = (MockHttpSession) signup.getRequest().getSession(false);
-        mvc.perform(get("/api/auth/me").session(session))
+        MockHttpSession signupSession = (MockHttpSession) signup.getRequest().getSession(false);
+        mvc.perform(get("/api/auth/me").session(signupSession))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Test Member"));
 
@@ -44,10 +44,16 @@ class AccountControllerIntegrationTest {
                         .content("{\"email\":\"member@example.test\",\"password\":\"wrong-password\"}"))
                 .andExpect(status().isUnauthorized());
 
-        mvc.perform(post("/api/auth/login")
+        var login = mvc.perform(post("/api/auth/login")
                         .contentType("application/json")
                         .content("{\"email\":\"member@example.test\",\"password\":\"example-pass-123\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Test Member"));
+                .andExpect(jsonPath("$.name").value("Test Member"))
+                .andReturn();
+
+        MockHttpSession loginSession = (MockHttpSession) login.getRequest().getSession(false);
+        mvc.perform(get("/api/auth/me").session(loginSession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("member@example.test"));
     }
 }
