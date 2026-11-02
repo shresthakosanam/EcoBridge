@@ -11,4 +11,4 @@ RUN useradd --system --uid 1001 ecobridge
 COPY --from=build /app/target/ecobridge-1.0.0.jar app.jar
 USER ecobridge
 EXPOSE 8080
-ENTRYPOINT ["java","-XX:MaxRAMPercentage=75.0","-jar","/app/app.jar"]
+ENTRYPOINT ["java","-XX:MaxRAMPercentage=75.0","-XX:TieredStopAtLevel=1","-XX:+UseSerialGC","-jar","/app/app.jar"]
